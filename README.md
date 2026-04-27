@@ -127,3 +127,12 @@ The system includes the following main tables:
 - Product image uploads
 - Email notifications
 - Payment gateway integration (Stripe / PayPal)
+
+---
+
+## 👨‍💻 Author
+
+**Yousef Ahmed Fawzy**
+
+- Backend Developer
+- ASP.NET Core Enthusiast
