@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PhoneStore.API/PhoneStore.API.csproj" />
+  <Project Path="PhoneStore.Application/PhoneStore.Application.csproj" />
+  <Project Path="PhoneStore.Domain/PhoneStore.Domain.csproj" />
+  <Project Path="PhoneStore.Infrastructure/PhoneStore.Infrastructure.csproj" />
+</Solution>
