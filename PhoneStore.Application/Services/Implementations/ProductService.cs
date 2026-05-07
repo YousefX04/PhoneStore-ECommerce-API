@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Microsoft.Extensions.Caching.Memory;
 using PhoneStore.Application.DTOs.Product;
 using PhoneStore.Application.Services.Interfaces;
 using PhoneStore.Domain.Entities;
@@ -9,14 +10,16 @@ namespace PhoneStore.Application.Services.Implementations
     public class ProductService : IProductService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMemoryCache _memoryCache;
         private readonly IValidator<CreateProductDto> _createProductValidator;
         private readonly IValidator<UpdateProductDto> _updateProductValidator;
 
-        public ProductService(IUnitOfWork unitOfWork, IValidator<CreateProductDto> createProductValidator, IValidator<UpdateProductDto> updateProductValidator)
+        public ProductService(IUnitOfWork unitOfWork, IValidator<CreateProductDto> createProductValidator, IValidator<UpdateProductDto> updateProductValidator, IMemoryCache memoryCache)
         {
             _unitOfWork = unitOfWork;
             _createProductValidator = createProductValidator;
             _updateProductValidator = updateProductValidator;
+            _memoryCache = memoryCache;
         }
 
         public async Task CreateProduct(CreateProductDto model)
@@ -57,6 +60,13 @@ namespace PhoneStore.Application.Services.Implementations
 
         public async Task<List<ProductDto>> GetAllProducts(int pageNumber = 1)
         {
+            string cacheKey = $"Products_Page_{pageNumber}";
+
+            if (_memoryCache.TryGetValue(cacheKey, out List<ProductDto> cachedProducts))
+            {
+                return cachedProducts;
+            }
+
             var products = await _unitOfWork.Products
                 .GetAllAsync(
                 filter: p => true,
@@ -77,14 +87,27 @@ namespace PhoneStore.Application.Services.Implementations
                 pageSize: 20
                 );
 
-            if (products == null)
+            if (products == null || !products.Any())
                 throw new Exception("No products found");
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            _memoryCache.Set(cacheKey, products, cacheOptions);
 
             return products;
         }
 
         public async Task<List<ProductDto>> GetProductsByCategory(Guid categoryId, int pageNumber = 1)
         {
+            string cacheKey = $"CategoryProducts_{categoryId}_Page_{pageNumber}";
+
+            if (_memoryCache.TryGetValue(cacheKey, out List<ProductDto> cachedProducts))
+            {
+                return cachedProducts;
+            }
+
             var products = await _unitOfWork.Products
                 .GetAllAsync(
                 filter: p => p.CategoryId == categoryId,
@@ -105,8 +128,14 @@ namespace PhoneStore.Application.Services.Implementations
                 pageSize: 20
                 );
 
-            if (products == null)
+            if (products == null || !products.Any())
                 throw new Exception("No products found");
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            _memoryCache.Set(cacheKey, products, cacheOptions);
 
             return products;
         }

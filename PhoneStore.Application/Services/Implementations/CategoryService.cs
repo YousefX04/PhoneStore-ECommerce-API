@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Microsoft.Extensions.Caching.Memory;
 using PhoneStore.Application.DTOs.Category;
 using PhoneStore.Application.Services.Interfaces;
 using PhoneStore.Domain.Entities;
@@ -9,14 +10,16 @@ namespace PhoneStore.Application.Services.Implementations
     public class CategoryService : ICategoryService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMemoryCache _memoryCache;
         private readonly IValidator<CreateCategoryDto> _createCategoryValidator;
         private readonly IValidator<UpdateCategoryDto> _updateCategoryValidator;
 
-        public CategoryService(IUnitOfWork unitOfWork, IValidator<CreateCategoryDto> createCategoryValidator, IValidator<UpdateCategoryDto> updateCategoryValidator)
+        public CategoryService(IUnitOfWork unitOfWork, IValidator<CreateCategoryDto> createCategoryValidator, IValidator<UpdateCategoryDto> updateCategoryValidator, IMemoryCache memoryCache)
         {
             _unitOfWork = unitOfWork;
             _createCategoryValidator = createCategoryValidator;
             _updateCategoryValidator = updateCategoryValidator;
+            _memoryCache = memoryCache;
         }
 
         public async Task CreateCategory(CreateCategoryDto model)
@@ -58,6 +61,13 @@ namespace PhoneStore.Application.Services.Implementations
 
         public async Task<List<CategoryDto>> GetAllCategories()
         {
+            string cacheKey = "categories";
+
+            if (_memoryCache.TryGetValue(cacheKey, out List<CategoryDto> cachedCategories))
+            {
+                return cachedCategories;
+            }
+
             var categories = await _unitOfWork.Categories
                 .GetAllAsync(
                 filter: c => true,
@@ -67,8 +77,14 @@ namespace PhoneStore.Application.Services.Implementations
                     Name = c.Name,
                 });
 
-            if (categories == null)
+            if (categories == null || !categories.Any())
                 throw new Exception("No categories found");
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            _memoryCache.Set(cacheKey, categories, cacheOptions);
 
             return categories;
         }

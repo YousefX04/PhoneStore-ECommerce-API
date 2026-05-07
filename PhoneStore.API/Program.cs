@@ -12,6 +12,8 @@ namespace PhoneStore.API
 
             builder.Services.AddControllers();
 
+            builder.Services.AddMemoryCache();
+
             builder.Services.AddInfrastructure(builder.Configuration);
 
             builder.Services.AddApplication(builder.Configuration);
